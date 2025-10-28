@@ -1,0 +1,55 @@
+[project]
+name = "robotics_toolbox"
+version = "0.1.0"
+description = "Robotics toolbox used to teach basic robotics at CTU."
+authors = [
+    { name = "Vladimir Petrik", email = "vladimir.petrik@cvut.cz" },
+]
+requires-python = "<=3.12,>=3.10"
+readme = "README.rst"
+license = { text = "BSD-3-Clause license" }
+
+dependencies = [
+    "numpy>=1.26.4",
+    "robomeshcat>=1.1.1",
+    "pin>=2.7.0",
+    "matplotlib>=3.9.2",
+    "example-robot-data>=4.1.0",
+    "pycollada>=0.8",
+    "shapely>=2.0.6",
+    "anytree>=2.12.1",
+    "scipy>=1.14.1",
+    "opencv-python>=4.10.0.84",
+]
+
+
+[tool.pdm]
+distribution = true
+[tool.pdm.dev-dependencies]
+test = [
+    "pytest>=7.4.3",
+]
+lint = [
+    "black>=23.10.1",
+    "ruff>=0.1.3",
+]
+doc = [
+    "sphinx",
+    "sphinx-rtd-theme>=2.0.0",
+]
+
+
+[tool.pdm.scripts]
+pytest = "pytest"
+test = "pytest -v tests/"
+coverage = "coverage run --source src -m pytest tests/"
+post_coverage = "coverage xml"
+ruff = "ruff check src tests exercises"
+black = "black --check --diff --verbose src tests exercises"
+format = "black src tests exercises"
+lint = { composite = ["ruff", "black"] }
+doc_to_html = "sphinx-build -b html docs/ docs/_build"
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
