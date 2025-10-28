@@ -4,6 +4,7 @@ For subject ROB in this year
 
 # Useful commands
 
+(sepsal jsem je ja a je mozhne ze jsem neco nepochopil spravne, ale je to par tech co budete potrebovat)
 git clone link
 cd -> (vlezt do nakopirovaneho projektu)
 git status (je aktualni? Atd)
