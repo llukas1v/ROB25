@@ -1,0 +1,111 @@
+<robot name="spatial_robot">
+
+  <!-- Barvy -->
+  <material name="red"><color rgba="1 0 0 1"/></material>
+  <material name="gray"><color rgba="0.5 0.5 0.5 1"/></material>
+
+  <!-- Base -->
+  <link name="base">
+    <visual>
+      <geometry>
+        <box size="0.3 0.3 0.3"/>
+      </geometry>
+      <material name="gray"/>
+    </visual>
+  </link>
+
+  <!-- 1. kloub (Z) -->
+  <link name="cylinder1">
+    <visual>
+      <geometry>
+        <cylinder length="0.5" radius="0.05"/>
+      </geometry>
+      <material name="red"/>
+    </visual>
+  </link>
+
+  <joint name="base_cylinder1" type="revolute">
+    <parent link="base"/>
+    <child link="cylinder1"/>
+    <origin xyz="0 0 0.15" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.57" upper="1.57" effort="30" velocity="1.0"/>
+  </joint>
+
+  <!-- Sphere 1 -->
+  <link name="sphere1">
+    <visual>
+      <geometry><sphere radius="0.06"/></geometry>
+      <material name="gray"/>
+    </visual>
+  </link>
+
+  <joint name="cylinder1_sphere1" type="fixed">
+    <parent link="cylinder1"/>
+    <child link="sphere1"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+
+  <!-- 2. kloub (X) -->
+  <link name="cylinder2">
+    <visual>
+      <geometry><cylinder length="0.25" radius="0.05"/></geometry>
+      <material name="red"/>
+    </visual>
+  </link>
+
+  <joint name="sphere1_cylinder2" type="revolute">
+    <parent link="sphere1"/>
+    <child link="cylinder2"/>
+    <origin xyz="0 0 0.31" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-1.57" upper="1.57" effort="30" velocity="2"/>
+  </joint>
+
+  <!-- 3. kloub (Z) -->
+  <link name="cylinder3">
+    <visual>
+      <geometry><cylinder length="0.25" radius="0.05"/></geometry>
+      <material name="red"/>
+    </visual>
+  </link>
+
+  <joint name="cylinder2_to_cylinder3" type="revolute">
+    <parent link="cylinder2"/>
+    <child link="cylinder3"/>
+    <origin xyz="0 0 0.31" rpy="0 0 0"/>
+    <axis xyz="0 0 1"/>
+    <limit lower="-1.57" upper="1.57" effort="30" velocity="2"/>
+  </joint>
+
+  <!-- Sphere 2 -->
+  <link name="sphere2">
+    <visual>
+      <geometry><sphere radius="0.06"/></geometry>
+      <material name="gray"/>
+    </visual>
+  </link>
+
+  <joint name="cylinder3_to_sphere2" type="fixed">
+    <parent link="cylinder3"/>
+    <child link="sphere2"/>
+    <origin xyz="0 0 0.25" rpy="0 0 0"/>
+  </joint>
+
+  <!-- 4. kloub (X) -->
+  <link name="cylinder4">
+    <visual>
+      <geometry><cylinder length="0.25" radius="0.05"/></geometry>
+      <material name="red"/>
+    </visual>
+  </link>
+
+  <joint name="sphere2_to_cylinder4" type="revolute">
+    <parent link="sphere2"/>
+    <child link="cylinder4"/>
+    <origin xyz="0 0 0.06" rpy="0 0 0"/>
+    <axis xyz="1 0 0"/>
+    <limit lower="-1.57" upper="1.57" effort="30" velocity="2"/>
+  </joint>
+
+</robot>
