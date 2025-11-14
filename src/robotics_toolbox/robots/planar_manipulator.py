@@ -7,13 +7,20 @@
 
 """Module for representing planar manipulator."""
 
+#import matplotlib.pyplot as plt
+
+
 from __future__ import annotations
+from copy import copy, deepcopy
+from math import isclose
 import numpy as np
 from numpy.typing import ArrayLike
 from shapely import MultiPolygon, LineString, MultiLineString
 
-from robotics_toolbox.core import SE2, SE3, SO2
+from robotics_toolbox.core import SE2, SE3
+from robotics_toolbox.core.so2 import SO2
 from robotics_toolbox.robots.robot_base import RobotBase
+
 
 class PlanarManipulator(RobotBase):
     def __init__(
@@ -82,46 +89,37 @@ class PlanarManipulator(RobotBase):
     def configuration(self) -> np.ndarray | SE2 | SE3:
         """Get the robot configuration."""
         return self.q
-    
+
     def flange_pose(self) -> SE2:
         """Return the pose of the flange in the reference frame."""
         # todo HW02: implement fk for the flange
-        result = SE2()
-        result.set_from(self.base_pose)
 
-        for i in range(len(self.link_parameters)):
-            if self.structure[i] == 'P':
-                result *= SE2([0, 0], SO2(self.link_parameters[i]))
-                result *= SE2([self.q[i], 0], SO2(0))
-            elif self.structure[i] == 'R':
-                result *= SE2([0, 0], SO2(self.q[i]))
-                result *= SE2([self.link_parameters[i], 0], SO2(0))
 
-        return result
-    
+        fl = self.base_pose
+
+        for i in range(self.dof):
+            if self.structure[i] == 'R':
+                n = SE2( rotation= self.q[i])*SE2(translation= [self.link_parameters[i],0])
+            else:
+                n = SE2(  rotation= self.link_parameters[i])*SE2(translation= [self.q[i],0] )
+            fl *= n
+        return fl
+
     def fk_all_links(self) -> list[SE2]:
         """Compute FK for frames that are attached to the links of the robot.
         The first frame is base_frame, the next frames are described in the constructor.
         """
         # todo HW02: implement fk
-        positions = []
+        frames = []
+        frames.append(self.base_pose)
+        for i in range(self.dof):
+            if self.structure[i] == 'R':
+                n = SE2( rotation= self.q[i])*SE2(translation= [self.link_parameters[i],0])
+            else:
+                n = SE2(  rotation= self.link_parameters[i])*SE2(translation= [self.q[i],0] )
+            frames.append(frames[i]*n)
+        return frames
 
-        current_joint = SE2()
-        current_joint.set_from(self.base_pose)
-        positions.append(current_joint)
-
-        for i in range(len(self.link_parameters)):
-            if self.structure[i] == 'P':
-                current_joint *= SE2([0, 0], SO2(self.link_parameters[i]))
-                current_joint *= SE2([self.q[i], 0], SO2(0))
-            elif self.structure[i] == 'R':
-                current_joint *= SE2([0, 0], SO2(self.q[i]))
-                current_joint *= SE2([self.link_parameters[i], 0], SO2(0))
-
-            positions.append(current_joint)
-        
-        return positions
-    
     def _gripper_lines(self, flange: SE2):
         """Return tuple of lines (start-end point) that are used to plot gripper
         attached to the flange frame."""
@@ -144,13 +142,84 @@ class PlanarManipulator(RobotBase):
     def jacobian(self) -> np.ndarray:
         """Computes jacobian of the manipulator for the given structure and
         configuration."""
-        jac = np.zeros((3, len(self.q)))
+        #jac = np.zeros((3, len(self.q)))
         # todo: HW04 implement jacobian computation
+        fi = [self.base_pose.rotation.angle]
+        for i in range(self.dof):
+            if self.structure[i] == 'R':    #R revolute
+                fi.append(fi[i]+self.q[i])
+            else:   #P prismatic
+                fi.append(fi[i]+self.link_parameters[i])
+        fi = fi[1:]
+
+        x = []
+        for i in range(self.dof):
+            if self.structure[i] == 'R':    #R revolute
+                n = 0
+                for j in range(i,self.dof):
+                    if self.structure[j] == 'R': 
+                        n += -np.sin(fi[j])*self.link_parameters[j]
+                    else:
+                        n += -np.sin(fi[j])*self.q[j]
+            else:   #P prismatic
+                n = np.cos(fi[i])
+            x.append(n)
+
+        y = []
+        for i in range(self.dof):
+            if self.structure[i] == 'R':    #R revolute
+                n = 0
+                for j in range(i,self.dof):
+                    if self.structure[j] == 'R': 
+                        n += np.cos(fi[j])*self.link_parameters[j]
+                    else:
+                        n += np.cos(fi[j])*self.q[j]
+            else:   #P prismatic
+                n = np.sin(fi[i])
+            y.append(n)
+
+        theta = []
+        for i in range(self.dof):
+            if self.structure[i] == 'R':    #R revolute
+                n = 1
+            else:   #P prismatic
+                n = 0
+            theta.append(n)
+        jac = np.array([x,y,theta])
         return jac
 
     def jacobian_finite_difference(self, delta=1e-5) -> np.ndarray:
         jac = np.zeros((3, len(self.q)))
         # todo: HW04 implement jacobian computation
+
+
+
+
+
+        d = PlanarManipulator(link_parameters=self.link_parameters,
+                              structure= self.structure,
+                              base_pose= self.base_pose,
+                              gripper_length=self.gripper_length)
+
+        old = self.flange_pose()
+        old = np.hstack((old.translation , old.rotation.angle))
+        jac = np.array([[],[],[]])
+        for i in range(self.dof):
+
+            new_q = copy(self.q) 
+            
+            new_q[i] = new_q[i] + delta
+
+            d.set_configuration(new_q)
+            new = d.flange_pose()
+            new = np.hstack([new.translation , new.rotation.angle])
+
+            s = (new-old)/delta
+            s = s.reshape(-1,1)
+            
+            jac = np.hstack((jac,s))
+
+
         return jac
 
     def ik_numerical(
@@ -162,7 +231,14 @@ class PlanarManipulator(RobotBase):
         """Compute IK numerically. Value self.q is used as an initial guess and updated
         to solution of IK. Returns True if converged, False otherwise."""
         # todo: HW05 implement numerical IK
+        for i in range(max_iterations):
+            c = self.flange_pose()
+            e = np.append(flange_pose_desired.translation - c.translation , [flange_pose_desired.rotation.angle - c.rotation.angle])
 
+            if np.linalg.norm(e) < acceptable_err:
+                return True
+
+            self.q = self.q + np.linalg.pinv(self.jacobian())@e
         return False
 
     def ik_analytical(self, flange_pose_desired: SE2) -> list[np.ndarray]:
@@ -173,11 +249,84 @@ class PlanarManipulator(RobotBase):
             "PRR",
         ), "Only RRR or PRR structure is supported"
 
+        ans = []
         # todo: HW05 implement analytical IK for RRR manipulator
         # todo: HW05 optional implement analytical IK for PRR manipulator
         if self.structure == "RRR":
-            pass
-        return []
+            link = [self.link_parameters[2] ,0]
+            s = flange_pose_desired.translation - flange_pose_desired.rotation.act(link)
+            dxy = (s- self.base_pose.translation)
+            d = np.linalg.norm(dxy)
+            r1 = self.link_parameters[0]
+            r2 = self.link_parameters[1]
+            if (d > r1 + r2) or d < abs(r1-r2):
+                return []
+            
+            a = (r1**2 - r2**2 + d**2)/(2*d)
+            h = np.sqrt(r1**2-a**2)
+
+            p = self.base_pose.translation + a * (dxy)/d
+            rp = np.array([- dxy[1],dxy[0]]) * (h/d)
+            if h==0:
+                bod =[p]
+            else:
+                bod = [p+rp,p-rp]
+
+            for b in bod:
+                v1 = b-self.base_pose.translation
+                v2 = s - b
+                v3 = flange_pose_desired.translation - s
+                new_q = [np.arctan2(v1[1],v1[0]) , np.arctan2(v2[1],v2[0]), np.arctan2(v3[1],v3[0])]
+
+                for i in [2,1]:
+                    new_q[i] = new_q[i]- new_q[i-1]
+                new_q[0] = new_q[0] - self.base_pose.rotation.angle
+                for i in range(3):
+                    if new_q[i] > np.pi:
+                        new_q[i] -= 2*np.pi
+                    elif new_q[i] < -np.pi:
+                        new_q[i] += 2*np.pi
+                ans.append(new_q)
+
+        elif self.structure == "PRR":
+            link = [self.link_parameters[2] ,0]
+            s = flange_pose_desired.translation - flange_pose_desired.rotation.act(link)
+
+            r = self.link_parameters[1]
+            x = self.base_pose.translation
+            rot = SO2(angle= self.link_parameters[0])
+            dx = rot.act(self.base_pose.rotation.act([1,0]))
+
+            A = dx@dx
+            B = 2 * ((x - s) @ dx)
+            C = (x - s) @ (x - s) - r**2
+
+            D = B**2 - 4 * A * C
+            if D < 0:
+                return[]
+            elif np.isclose(D,0):
+                t = [-B/(2*A)]
+                
+            elif D > 0:
+                sqD = np.sqrt(D)
+                t = [(-B + sqD)/(2*A), (-B - sqD)/(2*A)]
+
+            for k in t:
+                b = x + dx * k
+                v1 = b-x
+                v2 = s - b
+                v3 = flange_pose_desired.translation - s
+                new_q = [k , np.arctan2(v2[1],v2[0]), np.arctan2(v3[1],v3[0])]
+
+                new_q[2] = new_q[2]- new_q[1]
+                new_q[1] = new_q[1] - (self.base_pose.rotation.angle + self.link_parameters[0])
+                for i in [1,2]:
+                    if new_q[i] > np.pi:
+                        new_q[i] -= 2*np.pi
+                    elif new_q[i] < -np.pi:
+                        new_q[i] += 2*np.pi
+                ans.append(new_q)
+        return ans
 
     def in_collision(self) -> bool:
         """Check if robot in its current pose is in collision."""
